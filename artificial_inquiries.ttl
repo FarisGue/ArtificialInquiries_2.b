@@ -1,0 +1,108 @@
+@prefix artinq: <https://humanum-p8.fr/omk_artificialinquiries/onto/artinq#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix vs: <http://www.w3.org/2003/06/sw-vocab-status/ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://humanum-p8.fr/omk_artificialinquiries/onto/artinq#> a owl:Ontology ;
+    dcterms:title "Artificial Inquiries" ;
+    dcterms:description "Vocabulaire pour l'adaptation numérique de l'exercice 2b - All the Things You Could Do." .
+
+artinq:Task a rdfs:Class ;
+    rdfs:label "Task" ;
+    rdfs:comment "Une tâche décrite par l'utilisateur dans l'exercice numérique." ;
+    vs:term_status "experimental" .
+
+artinq:AIRole a rdfs:Class ;
+    rdfs:label "AI Role" ;
+    rdfs:comment "Un rôle ou une action que l'utilisateur accepte de confier à l'IA." ;
+    vs:term_status "experimental" .
+
+artinq:HumanResponsibility a rdfs:Class ;
+    rdfs:label "Human Responsibility" ;
+    rdfs:comment "Une responsabilité que l'utilisateur souhaite conserver sous contrôle humain." ;
+    vs:term_status "experimental" .
+
+artinq:Reflection a rdfs:Class ;
+    rdfs:label "Reflection" ;
+    rdfs:comment "Une réflexion ou synthèse issue du choix de l'utilisateur." ;
+    vs:term_status "experimental" .
+
+artinq:TaskManager a rdfs:Class ;
+    rdfs:label "Task Manager" ;
+    rdfs:comment "Entité logique représentant la gestion d'un ensemble de tâches dans le prototype." ;
+    vs:term_status "experimental" .
+
+artinq:taskName a rdf:Property ;
+    rdfs:label "task name" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:importance a rdf:Property ;
+    rdfs:label "importance" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:frequency a rdf:Property ;
+    rdfs:label "frequency" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:assistanceLevel a rdf:Property ;
+    rdfs:label "assistance level" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:explanation a rdf:Property ;
+    rdfs:label "explanation" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:roleName a rdf:Property ;
+    rdfs:label "role name" ;
+    rdfs:domain artinq:AIRole ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:responsibilityName a rdf:Property ;
+    rdfs:label "responsibility name" ;
+    rdfs:domain artinq:HumanResponsibility ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:summary a rdf:Property ;
+    rdfs:label "summary" ;
+    rdfs:domain artinq:Reflection ;
+    rdfs:range xsd:string ;
+    vs:term_status "experimental" .
+
+artinq:usesAIRole a rdf:Property ;
+    rdfs:label "uses AI role" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range artinq:AIRole ;
+    vs:term_status "experimental" .
+
+artinq:keepsHumanResponsibility a rdf:Property ;
+    rdfs:label "keeps human responsibility" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range artinq:HumanResponsibility ;
+    vs:term_status "experimental" .
+
+artinq:generatesReflection a rdf:Property ;
+    rdfs:label "generates reflection" ;
+    rdfs:domain artinq:Task ;
+    rdfs:range artinq:Reflection ;
+    vs:term_status "experimental" .
+
+artinq:managesTask a rdf:Property ;
+    rdfs:label "manages task" ;
+    rdfs:domain artinq:TaskManager ;
+    rdfs:range artinq:Task ;
+    vs:term_status "experimental" .
