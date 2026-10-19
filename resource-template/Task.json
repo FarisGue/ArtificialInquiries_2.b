@@ -1,0 +1,131 @@
+{
+    "o:label": "Task",
+    "o:resource_template_property": [
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "http:\/\/purl.org\/dc\/terms\/",
+            "vocabulary_label": "Dublin Core",
+            "local_name": "title",
+            "label": "Title"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "http:\/\/purl.org\/dc\/terms\/",
+            "vocabulary_label": "Dublin Core",
+            "local_name": "description",
+            "label": "Description"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "taskName",
+            "label": "task name"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "importance",
+            "label": "importance"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "frequency",
+            "label": "frequency"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "assistanceLevel",
+            "label": "assistance level"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "explanation",
+            "label": "explanation"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "usesAIRole",
+            "label": "uses AI role"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "keepsHumanResponsibility",
+            "label": "keeps human responsibility"
+        },
+        {
+            "o:alternate_label": null,
+            "o:alternate_comment": null,
+            "o:is_required": false,
+            "o:is_private": false,
+            "o:default_lang": null,
+            "data_types": [],
+            "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+            "vocabulary_label": "Artificial Inquiries",
+            "local_name": "generatesReflection",
+            "label": "generates reflection"
+        }
+    ],
+    "o:resource_class": {
+        "vocabulary_namespace_uri": "https:\/\/humanum-p8.fr\/omk_artificialinquiries\/onto\/artinq#",
+        "vocabulary_label": "Artificial Inquiries",
+        "local_name": "Task",
+        "label": "Task"
+    }
+}
