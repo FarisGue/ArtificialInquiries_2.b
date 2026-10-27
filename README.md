@@ -254,3 +254,54 @@ it. Check that unrelated metadata survives editing, invalid keys show an error,
 configuration survives reload, and Clear configuration removes the saved keys.
 Also test a narrow mobile viewport. No real Omeka writes are performed as part
 of the automated mocked API checks.
+
+### Local user authentication (Guest 3.4.45)
+
+The **User Authentication** section provides Email, Password, Login and Logout.
+It uses a separate Guest request function and never changes the administrative
+API key configuration or the authentication used by CRUD requests.
+
+- `loginUser()` sends JSON `{email, password}` to `POST /api/guest/login`
+  with cookies enabled. `/api/login` is used only after HTTP 404 or 405.
+  A jSend `status: success` is required; HTTP 200 alone is not sufficient.
+- Guest's returned `data.session_token.key_identity` and `key_credential` are
+  stored with their Omeka base URL in sessionStorage, under a separate key.
+  No password or full user profile is stored. If storage is blocked, the token
+  remains in memory for the current page only.
+- `getCurrentUser()` calls `GET /api/users/me` using only these Guest credentials,
+  or `GET /api/guest/me` with cookies for a cookie-only session.
+  The UI displays the email returned by Omeka. Restored sessions are verified
+  before the authenticated state is shown. Rejected/expired sessions are removed.
+- `logoutUser()` calls `POST /api/guest/logout` with cookies and clears
+  session data. If the server cannot be reached, local data is still cleared and
+  the page explicitly reports that server logout was not confirmed.
+
+Canonical Guest routes use `credentials: include`. Token verification at
+`/api/users/me` omits cookies so that the returned Guest keys determine identity.
+If canonical logout is unavailable or its cookie session is invalid, compatibility
+`/api/logout` is attempted with the returned Guest keys and cookies enabled.
+The administrative CRUD keys and requests are unchanged. Cookie-only sessions
+store just the server URL and a cookie-session marker; cookies remain browser-managed.
+Passwords are cleared after a login attempt. Temporary console diagnostics show
+HTTP status, content-type and a sanitized parsed response; passwords, credentials
+and tokens are redacted. Omeka's jSend failure message is displayed, while invalid
+JSON is reported separately from network/CORS errors. Closing the tab removes
+its sessionStorage but does not revoke a server-side token: use Logout to revoke it.
+Guest can invalidate previous session tokens when the same user logs in elsewhere.
+
+In Guest module settings, enable API login for the intended user role and allow
+the page's origin. The server must support CORS for all three endpoints, including
+OPTIONS/JSON preflight. Cookie requests require an explicit allowed origin (not
+`*`) and `Access-Control-Allow-Credentials: true`; browser cookie policies also
+apply. For production, use HTTPS. CAS, GitHub OAuth and Google
+OAuth remain explicitly unconfigured; none is simulated.
+
+The optional developer checks `node --check response.js` and
+`node response.test.cjs` cover the existing CRUD behavior plus mocked Guest login,
+invalid credentials, restoration, expiry, logout, offline cleanup and credential
+isolation. Node is only a test tool; the page itself remains plain static HTML,
+CSS and JavaScript. Live authentication requires a configured Omeka instance and
+an actual user account; mocked tests do not verify that server's CORS settings.
+
+Implementation reference: [Guest 3.4.45 API controller](https://github.com/Daniel-KM/Omeka-S-module-Guest/blob/3.4.45/src/Controller/ApiController.php)
+and [Guest module documentation](https://omeka.org/s/modules/Guest/).

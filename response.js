@@ -11,6 +11,206 @@ let classes = new Map();
 let tasks = [];
 let editing = null;
 let busy = false;
+const GUEST_STORAGE_KEY = 'artinq.omeka.guest.v1';
+let guestSession = null;
+
+// Two independent mechanisms: request() uses manually configured admin API keys
+// for CRUD. guestRequest() uses ONLY the Guest login's temporary session_token.
+// Guest 3.4.45 returns data.session_token with key_identity/key_credential.
+// Never copy these into config/localStorage or send admin keys to Guest routes.
+function guestBase() {
+  const url = new URL($('base-url').value.trim());
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Enter a valid Omeka HTTP(S) base URL without credentials or query parameters.');
+  return url.href.replace(/\/+$/, '').replace(/\/api$/, '');
+}
+function guestStatus(email = null, error = false) {
+  $('user-auth-status').textContent = error ? 'Authentication error' : email ? `Authenticated as ${email}` : 'Not authenticated';
+  $('user-auth-status').dataset.state = error ? 'error' : email ? 'connected' : 'disconnected';
+}
+function clearGuestSession() {
+  guestSession = null;
+  try { sessionStorage.removeItem(GUEST_STORAGE_KEY); } catch { /* Memory-only session when storage is unavailable. */ }
+  $('user-password').value = '';
+  guestStatus();
+}
+// Temporary console diagnostics: copy and redact before logging, including nested
+// credentials and any occurrences of their values in server error messages.
+function safeGuestResponse(data, extraSecrets = []) {
+  const secrets = [...extraSecrets];
+  const sensitive = /password|credential|token|secret|authorization|cookie|key_identity/i;
+  function collect(value, hidden = false) {
+    if (typeof value === 'string' && hidden && value) secrets.push(value);
+    else if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) collect(child, hidden || sensitive.test(key));
+  }
+  collect(data);
+  function copy(value) {
+    if (typeof value === 'string') {
+      for (const secret of secrets.filter(Boolean)) for (const variant of [secret, encodeURIComponent(secret)]) value = value.split(variant).join('[REDACTED]');
+      return redact(value);
+    }
+    if (Array.isArray(value)) return value.map(copy);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, sensitive.test(key) ? '[REDACTED]' : copy(child)]));
+    return value;
+  }
+  return copy(data);
+}
+function guestErrorMessage(data) {
+  const messages = [];
+  function collect(value) {
+    if (typeof value === 'string' && value !== '[REDACTED]') messages.push(value);
+    else if (value && typeof value === 'object') Object.values(value).forEach(collect);
+  }
+  collect(data?.message || data?.data);
+  return messages.join(' ').slice(0, 1000);
+}
+async function guestRequest(path, { base, session = null, body } = {}) {
+  const url = new URL(`${base}/api/${path}`);
+  if (session) {
+    if (session.base !== base) throw new Error('Guest session belongs to a different Omeka server. Log in again.');
+    if (session.identity && session.credential && !path.startsWith('guest/')) {
+      url.searchParams.set('key_identity', session.identity);
+      url.searchParams.set('key_credential', session.credential);
+    }
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    // Canonical Guest routes use cookies; users/me authenticates the returned keys.
+    const formLogin = (path === 'guest/login' || path === 'login') && body instanceof URLSearchParams;
+    const response = await fetch(url, { method: path.endsWith('/me') ? 'GET' : 'POST', headers: body ? { Accept: 'application/json', 'Content-Type': formLogin ? 'application/x-www-form-urlencoded;charset=UTF-8' : 'application/json' } : { Accept: 'application/json' }, body: body ? (formLogin ? body.toString() : JSON.stringify(body)) : undefined, credentials: path === 'users/me' ? 'omit' : 'include', cache: 'no-store', referrerPolicy: 'no-referrer', redirect: 'error', signal: controller.signal });
+    // Never put Guest request/response bodies in debug: login contains secrets.
+    debug(url, response.status, 'Guest authentication response (body omitted).');
+    const raw = await response.text();
+    let data;
+    const endpoint = `${url.origin}${url.pathname}`;
+    try { data = JSON.parse(raw); } catch {
+      console.info('Guest response', { endpoint, status: response.status, response: '[unparseable body omitted]' });
+      const error = new Error('Omeka responded, but the Guest login response could not be parsed.');
+      error.status = response.status;
+      throw error;
+    }
+    const safe = safeGuestResponse(data, [formLogin ? body.get('password') : body?.password]);
+    console.info('Guest response', { endpoint, status: response.status, response: safe });
+    if (!response.ok || data?.status === 'error' || data?.status === 'fail') {
+      const error = new Error(guestErrorMessage(safe) || (path.endsWith('login')
+        ? 'Login failed: check email/password, account activation, and the roles allowed to log in via Guest API.'
+        : 'Guest session is invalid or expired. Please log in again.'));
+      error.status = response.status;
+      error.guestRejected = data?.status === 'error' || data?.status === 'fail';
+      error.invalidSession = !path.endsWith('login') && ([401, 403].includes(response.status) || (response.ok && ['error', 'fail'].includes(data?.status)));
+      throw error;
+    }
+    if (path !== 'users/me' && data?.status !== 'success') throw new Error('Omeka did not return a successful Guest jSend response.');
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError' || error instanceof TypeError) throw new Error('Omeka unavailable or CORS/network request blocked. Check the server, allowed origin, JSON preflight, HTTPS and local-network permissions.');
+    throw error;
+  } finally { clearTimeout(timer); }
+}
+async function getCurrentUser() {
+  if (!guestSession) { guestStatus(); return null; }
+  if (guestBase() !== guestSession.base) { clearGuestSession(); throw new Error('Omeka URL changed. Log in to the selected server.'); }
+  try {
+    const response = await guestRequest(guestSession.identity ? 'users/me' : 'guest/me', { base: guestSession.base, session: guestSession });
+    const user = response?.data?.user || response?.data || response;
+    if (!user || typeof user['o:email'] !== 'string' || !user['o:email']) throw new Error('Guest did not return a valid current user. Authentication could not be verified.');
+    guestStatus(user['o:email']);
+    return user;
+  } catch (error) {
+    // Optional verification must not overwrite a login confirmed by Omeka.
+    if (guestSession?.authenticated && guestSession.email) {
+      guestStatus(guestSession.email);
+      $('user-auth-message').textContent = 'Login remains confirmed. Optional user verification could not be completed.';
+      return null;
+    }
+    if (error.invalidSession) clearGuestSession();
+    guestStatus(null, true);
+    throw error;
+  }
+}
+async function loginUser() {
+  if (!$('user-auth-form').reportValidity()) throw new Error('Enter a valid email and password.');
+  if (guestSession) throw new Error('Log out of the existing Guest session before logging in again.');
+  const base = guestBase();
+  const email = $('user-email').value.trim();
+  const password = $('user-password').value;
+  if (!email || !password) throw new Error('Enter a valid email and password.');
+  const body = new URLSearchParams();
+  body.set('email', email);
+  body.set('password', password);
+  let response;
+  try {
+    try { response = await guestRequest('guest/login', { base, body }); }
+    catch (error) {
+      // Retry a Guest rejection or unavailable route once with the same form body.
+      // Network errors and malformed HTTP 200 responses are not retried.
+      if (!error.guestRejected && ![404, 405].includes(error.status)) throw error;
+      response = await guestRequest('login', { base, body });
+    }
+  }
+  finally { $('user-password').value = ''; }
+  if (response.data?.login === null || response.data?.login === false) throw new Error('Omeka requires an additional login step (such as two-factor authentication). Complete it in Omeka before continuing.');
+  const token = response.data?.session_token || response.data;
+  const hasKeys = typeof token?.key_identity === 'string' && token.key_identity && typeof token?.key_credential === 'string' && token.key_credential;
+  // Cookie-only success is verified through guest/me, never trusted on its own.
+  guestSession = hasKeys ? { base, identity: token.key_identity, credential: token.key_credential } : { base, cookie: true };
+  const loginConfirmed = response.status === 'success' && response.data?.login === true;
+  const user = response.data?.user;
+  if (loginConfirmed && typeof user?.['o:email'] === 'string' && user['o:email']) {
+    // The login response is authoritative; no second request is needed for UI success.
+    Object.assign(guestSession, {
+      authenticated: true,
+      email: user['o:email'],
+      name: typeof user['o:name'] === 'string' ? user['o:name'] : '',
+      role: typeof user['o:role'] === 'string' ? user['o:role'] : '',
+    });
+    guestStatus(guestSession.email);
+  }
+  let saved = true;
+  try { sessionStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestSession)); } catch { saved = false; }
+  // Older compatibility responses may omit user data and still need verification.
+  if (!guestSession.authenticated) await getCurrentUser();
+  $('user-auth-message').textContent = saved ? 'Login successful.' : 'Login successful. Browser session storage is unavailable; this login lasts until the page reloads.';
+}
+async function logoutUser() {
+  const session = guestSession;
+  try {
+    if (session) {
+      try { await guestRequest('guest/logout', { base: session.base, session }); }
+      catch (error) {
+        // Compatibility logout revokes returned tokens if the cookie is missing.
+        if (!session.identity || (!error.invalidSession && ![404, 405].includes(error.status))) throw error;
+        await guestRequest('logout', { base: session.base, session });
+      }
+    }
+    $('user-auth-message').textContent = 'Logged out. Guest session data removed.';
+  } catch (error) {
+    $('user-auth-message').textContent = error.invalidSession ? 'Session already invalid or expired. Local session data removed.' : `Local session data removed, but server logout could not be confirmed. ${error.message}`;
+  } finally { clearGuestSession(); }
+}
+function runGuest(action) {
+  // Share the operation lock without changing the CRUD connection indicator.
+  return run(async () => {
+    try { await action(); }
+    catch (error) { guestStatus(null, true); $('user-auth-message').textContent = error.message; }
+  });
+}
+function restoreGuestSession() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(GUEST_STORAGE_KEY) || 'null');
+    if (!saved) return;
+    const hasKeys = typeof saved.identity === 'string' && saved.identity && typeof saved.credential === 'string' && saved.credential;
+    if (saved.base !== guestBase() || (!hasKeys && saved.cookie !== true)) { clearGuestSession(); return; }
+    guestSession = hasKeys ? { base: saved.base, identity: saved.identity, credential: saved.credential } : { base: saved.base, cookie: true };
+    if (saved.authenticated === true && typeof saved.email === 'string' && saved.email) {
+      Object.assign(guestSession, { authenticated: true, email: saved.email,
+        name: typeof saved.name === 'string' ? saved.name : '',
+        role: typeof saved.role === 'string' ? saved.role : '' });
+      guestStatus(guestSession.email);
+    }
+    runGuest(getCurrentUser);
+  } catch { clearGuestSession(); }
+}
 
 function showStatus(label) {
   $('api-status').textContent = label;
@@ -23,7 +223,7 @@ function showMessage(message, kind = 'info') {
 }
 function redact(value) {
   let result = String(value);
-  for (const secret of [config?.identity, config?.credential, $('identity').value, $('credential').value]) {
+  for (const secret of [config?.identity, config?.credential, guestSession?.identity, guestSession?.credential, $('user-password').value, $('identity').value, $('credential').value]) {
     if (secret) for (const variant of [secret, encodeURIComponent(secret)]) result = result.split(variant).join('[REDACTED]');
   }
   return result.replace(/(key_(?:identity|credential)=)[^&\s]*/gi, '$1[REDACTED]');
@@ -276,3 +476,7 @@ $('task-form').addEventListener('submit', event => {
   });
 });
 loadConfig();
+$('user-auth-form').addEventListener('submit', event => { event.preventDefault(); runGuest(loginUser); });
+$('logout-user').addEventListener('click', () => runGuest(logoutUser));
+$('base-url').addEventListener('change', () => { if (guestSession) runGuest(getCurrentUser); });
+restoreGuestSession();
