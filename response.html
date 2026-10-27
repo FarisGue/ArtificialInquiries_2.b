@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Human or AI? — Omeka S CRUD Interface</title>
+  <link rel="stylesheet" href="response.css">
+  <script src="response.js" defer></script>
+</head>
+<body>
+  <header><div class="wrap header-row"><div><p class="eyebrow">Knowledge Task Mapper</p><h1>Human or AI?</h1><p>Omeka S CRUD Interface</p></div><a href="./">Back to main application</a></div></header>
+  <main class="wrap">
+    <section class="panel" aria-labelledby="configuration-heading">
+      <div class="section-heading"><h2 id="configuration-heading">Connection configuration</h2><span id="api-status" class="status" role="status">Disconnected</span></div>
+      <form id="config-form">
+        <div class="form-grid">
+          <label class="wide">Omeka S base URL<input id="base-url" type="url" placeholder="http://localhost/omeka-s" required></label>
+          <label>API Identity Key<input id="identity" type="password" autocomplete="off"></label>
+          <label>API Credential Key<input id="credential" type="password" autocomplete="off"></label>
+          <label class="wide">Authentication mode<select id="auth-mode"><option value="keys">Omeka API Keys</option><option value="local">Local prototype</option><option value="cas">CAS (not configured)</option><option value="github">GitHub OAuth (not configured)</option><option value="google">Google OAuth (not configured)</option></select></label>
+        </div>
+        <p id="auth-note" class="hint"></p>
+        <p class="hint">University/local prototype: saved settings include your API keys in this browser’s localStorage. Use a trusted computer and clear configuration when finished.</p>
+        <p class="hint">If Omeka runs only on localhost, its API is reachable only from your own computer. GitHub Pages does not host your Omeka installation. Cross-origin access requires Omeka CORS configuration; browsers may also restrict HTTP or local-network requests.</p>
+        <p id="local-warning" class="notice" hidden>Localhost address: start your local Omeka server on this computer before connecting.</p>
+        <div class="actions"><button type="submit">Save configuration</button><button type="button" id="test-connection" class="secondary">Test connection</button><button type="button" id="clear-config" class="secondary">Clear configuration</button></div>
+      </form>
+    </section>
+    <div id="message" role="status" aria-live="polite" hidden></div>
+    <section aria-labelledby="tasks-heading">
+      <div class="section-heading"><div><p class="eyebrow">All the things you could do</p><h2 id="tasks-heading">Task Management</h2></div><div class="actions"><button id="refresh-tasks" class="secondary">Refresh</button><button id="add-task">+ Add Task</button></div></div>
+      <p id="task-count" class="hint">Save your configuration, then test the connection to load tasks.</p><div id="tasks" class="task-grid"></div>
+    </section>
+    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>CAS, GitHub OAuth and Google OAuth require additional server-side configuration or an authentication provider. No OAuth login is implemented here.</p></details>
+    <details class="panel"><summary>Request debug log (credentials redacted)</summary><pre id="debug">No requests yet.</pre></details>
+  </main>
+  <dialog id="task-dialog" aria-labelledby="form-heading">
+    <form id="task-form"><div class="section-heading"><h2 id="form-heading">Create Task</h2><button type="button" id="close-form" class="secondary">Close</button></div>
+      <p class="hint">Title and task name are required. Tasks created here are public in Omeka.</p>
+      <div class="form-grid">
+        <label class="wide">Title<input id="title" required></label>
+        <label class="wide">Task name<input id="taskName" required></label>
+        <label class="wide">Importance<textarea id="importance" rows="3"></textarea></label>
+        <label>Frequency<select id="frequency"><option value="">Not specified</option><option>Daily</option><option>Weekly</option><option>Occasionally</option><option>Rarely</option></select></label>
+        <label>Assistance level<select id="assistanceLevel"><option value="">Not specified</option><option>Human Only</option><option>AI Can Assist</option><option>AI Can Do Most of the Task</option></select></label>
+        <label class="wide">Explanation<textarea id="explanation" rows="3"></textarea></label>
+        <label>AI roles<select id="usesAIRole" multiple size="5" aria-describedby="multi-help"></select></label>
+        <label>Human responsibilities<select id="keepsHumanResponsibility" multiple size="5" aria-describedby="multi-help"></select></label>
+        <p id="multi-help" class="hint wide">Select multiple resources with Ctrl (Windows) or Command (Mac). Empty lists mean no matching visible resources were found.</p>
+        <label class="wide">Reflection<select id="generatesReflection"><option value="">None</option></select></label>
+      </div>
+      <p id="form-error" role="alert" hidden></p><div class="actions"><button id="save-task" type="submit">Create Task</button><button id="cancel-form" type="button" class="secondary">Cancel</button></div>
+    </form>
+  </dialog>
+  <footer class="wrap">Artificial Inquiries · Exercise 2b · Human judgment stays at the center.</footer>
+</body>
+</html>

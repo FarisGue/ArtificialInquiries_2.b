@@ -168,3 +168,89 @@ Puis ouvrir simplement :
 dans un navigateur web.
 
 Aucune installation supplémentaire n'est nécessaire pour le prototype.
+
+## Omeka S CRUD Interface
+
+`response.html`, `response.css` and `response.js` provide a framework-free,
+static interface for creating, reading, updating and deleting `artinq:Task`
+items through the Omeka S REST API. No build, npm dependency or backend is
+required for this page. The existing vocabulary and database files are unchanged.
+
+### Local usage
+
+1. Start XAMPP.
+2. Start Apache and MySQL.
+3. Access your Omeka S installation and import the artinq vocabulary if needed.
+4. Open `response.html` in a browser (preferably served by a local static server).
+5. Enter the Omeka base URL, for example `http://localhost/omeka-s`.
+6. Select **Omeka API Keys** and enter the identity and credential keys generated
+   in your Omeka user's API keys tab. The user must have permission to edit items.
+7. Save configuration and click **Test connection**.
+8. Create, read, update or delete Tasks. Existing AIRole, HumanResponsibility and
+   Reflection items are loaded into the resource selectors. Delete asks for confirmation.
+
+Configuration, including keys, is saved in this browser's localStorage. This is
+only a university/local prototype: use a trusted browser and clear configuration
+when finished. Keys are never hard-coded. Debug output redacts keys, although
+Omeka's query-string authentication still makes them visible to the browser's
+network tools and potentially server logs.
+
+### API and data handling
+
+- `GET /api/items?per_page=1` tests the connection.
+- Paginated `GET /api/properties` and `GET /api/resource_classes` discover IDs.
+- Paginated `GET /api/items?resource_class_id=...` loads Tasks and related resources.
+- `GET /api/items/{id}` loads the current item for editing.
+- `POST /api/items`, `PATCH /api/items/{id}` and `DELETE /api/items/{id}` perform writes.
+
+Requests use `fetch()`. Public GET requests are attempted without credentials
+first. When both keys are supplied in API Keys mode, authenticated reads follow
+so private resources and metadata are retained. Writes require `key_identity`
+and `key_credential` query parameters. Invalid credentials are reported instead
+of silently falling back to public data.
+
+JSON-LD literal values include discovered `property_id` values. Related items use
+`type: resource:item` with `value_resource_id`. New Tasks receive the discovered
+`artinq:Task` class and are public. PATCH preserves unrelated RDF metadata and
+additional literal values because Omeka replaces its value collection during
+partial updates. The editor changes the first literal value and first Reflection
+link, retaining additional existing values. A fresh read detects intervening
+changes before saving (this is not an atomic server-side concurrency lock).
+
+Reference: [Omeka REST API](https://omeka.org/s/docs/developer/api/rest_api/)
+and [resource value format](https://omeka.org/s/docs/developer/api/rest_api_reference/).
+
+### GitHub Pages and connection limitations
+
+Commit these files and enable GitHub Pages for your repository's branch and root
+folder under **Settings > Pages**. The intended URL is:
+`https://farisgue.github.io/ArtificialInquiries_2b/response.html`.
+All asset links are relative and work under a repository subpath.
+
+Localhost always refers to the visitor's own computer. Publishing this page does
+not publish Omeka. For other visitors, use a reachable Omeka installation,
+preferably HTTPS. Omeka/Apache must allow the page's origin through CORS, including
+GET, POST, PATCH, DELETE, OPTIONS and the Content-Type request header. Configure
+preflight responses on the server; client JavaScript cannot bypass CORS. HTTPS
+pages may encounter mixed-content or local-network browser restrictions when
+connecting to HTTP/local servers. Browser fetch errors cannot reliably distinguish
+these restrictions from an offline server, so the interface explains the likely causes.
+
+**Local prototype** supports anonymous public API reads; writes require API Keys.
+CAS, GitHub OAuth and Google OAuth are informational, unconfigured choices. They
+require additional server-side configuration or an authentication provider; the
+page does not simulate OAuth authentication.
+
+The navigation link points to the repository root. This checkout does not contain
+an `index.html` main application yet; restore that page to make this link lead to
+the original mapper.
+
+### Verification
+
+Run `node --check response.js` for an optional developer syntax check (Node is not
+needed to use the page). For a live acceptance test, connect to your own Omeka,
+create a disposable Task with related resources, edit it, refresh it, then delete
+it. Check that unrelated metadata survives editing, invalid keys show an error,
+configuration survives reload, and Clear configuration removes the saved keys.
+Also test a narrow mobile viewport. No real Omeka writes are performed as part
+of the automated mocked API checks.
