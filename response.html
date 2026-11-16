@@ -38,13 +38,20 @@
       </form>
       <p id="user-auth-message" class="hint" role="status" aria-live="polite">Guest session credentials are kept only for this tab’s session. Your password is never stored by this application.</p>
     </section>
+    <section class="panel" aria-labelledby="github-auth-heading">
+      <div class="section-heading"><h2 id="github-auth-heading">GitHub Authentication</h2><span id="github-auth-status" class="status" role="status">Not authenticated with GitHub</span></div>
+      <p class="hint">GitHub sign-in is independent of Omeka Guest sessions and the API keys used for CRUD administration.</p>
+      <div id="github-user" class="github-user" hidden><img id="github-avatar" width="48" height="48" alt=""><a id="github-profile" target="_blank" rel="noopener noreferrer"></a></div>
+      <div class="actions auth-actions"><button type="button" id="login-github">Continue with GitHub</button><button type="button" id="logout-github" class="secondary">Logout GitHub</button></div>
+      <p id="github-auth-message" class="hint" role="status" aria-live="polite">GitHub authentication data is kept only for this tab’s session.</p>
+    </section>
     <div id="message" role="status" aria-live="polite" hidden></div>
     <section aria-labelledby="tasks-heading">
       <div class="section-heading"><div><p class="eyebrow">All the things you could do</p><h2 id="tasks-heading">Task Management</h2></div><div class="actions"><button id="refresh-tasks" class="secondary">Refresh</button><button id="add-task">+ Add Task</button></div></div>
       <p id="task-count" class="hint">Save your configuration, then test the connection to load tasks.</p><div id="tasks" class="task-grid"></div>
     </section>
-    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>CAS, GitHub OAuth and Google OAuth require additional server-side configuration or an authentication provider. No OAuth login is implemented here.</p></details>
-    <section class="panel" aria-labelledby="auth-methods-heading"><h2 id="auth-methods-heading">Authentication methods</h2><ul><li>Local Omeka / Guest: Functional</li><li>CAS: Not configured</li><li>GitHub OAuth: Not configured</li><li>Google OAuth: Not configured</li></ul><p class="hint">Guest must allow your user role to log in via API and allow this page’s origin through CORS. CAS and OAuth require additional server-side configuration or an authentication provider.</p></section>
+    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>GitHub OAuth identifies the GitHub user independently and does not replace Omeka credentials. CAS and Google OAuth are not configured.</p></details>
+    <section class="panel" aria-labelledby="auth-methods-heading"><h2 id="auth-methods-heading">Authentication methods</h2><ul><li>Local Omeka / Guest: Functional</li><li>GitHub OAuth: Functional</li><li>CAS: Not configured</li><li>Google OAuth: Not configured</li></ul><p class="hint">Guest must allow your user role to log in via API and allow this page’s origin through CORS. GitHub OAuth uses a restricted Vercel token-exchange endpoint.</p></section>
     <details class="panel"><summary>Request debug log (credentials redacted)</summary><pre id="debug">No requests yet.</pre></details>
   </main>
   <dialog id="task-dialog" aria-labelledby="form-heading">

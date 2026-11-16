@@ -13,6 +13,66 @@ let editing = null;
 let busy = false;
 const GUEST_STORAGE_KEY = 'artinq.omeka.guest.v1';
 let guestSession = null;
+const GITHUB_CLIENT_ID = 'Ov23liCkVkoqie8A6Ggb';
+const GITHUB_STATE_KEY = 'artinq.github.oauth.state.v1';
+const GITHUB_TOKEN_KEY = 'artinq.github.access-token.v1';
+const GITHUB_USER_KEY = 'artinq.github.user.v1';
+
+function githubRedirectUri() {
+  return ['127.0.0.1', 'localhost'].includes(location.hostname)
+    ? 'http://127.0.0.1:5500/github-callback.html'
+    : 'https://FarisGue.github.io/ArtificialInquiries_2.b/github-callback.html';
+}
+function randomGithubState() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+function githubStatus(user = null) {
+  $('github-auth-status').textContent = user ? `Authenticated with GitHub as ${user.login}` : 'Not authenticated with GitHub';
+  $('github-auth-status').dataset.state = user ? 'connected' : 'disconnected';
+  $('github-user').hidden = !user;
+  if (user) {
+    $('github-avatar').src = user.avatar_url;
+    $('github-avatar').alt = `${user.login}'s GitHub avatar`;
+    $('github-profile').href = user.html_url;
+    $('github-profile').textContent = user.name || user.login;
+  } else {
+    $('github-avatar').removeAttribute?.('src');
+    $('github-avatar').alt = '';
+    $('github-profile').removeAttribute?.('href');
+    $('github-profile').textContent = '';
+  }
+}
+function loginWithGithub() {
+  const state = randomGithubState();
+  sessionStorage.setItem(GITHUB_STATE_KEY, state);
+  const authorize = new URL('https://github.com/login/oauth/authorize');
+  authorize.searchParams.set('client_id', GITHUB_CLIENT_ID);
+  authorize.searchParams.set('redirect_uri', githubRedirectUri());
+  authorize.searchParams.set('state', state);
+  // An omitted scope is the minimum needed to read the authenticated public profile.
+  location.assign(authorize.href);
+}
+function logoutGithub() {
+  for (const key of [GITHUB_TOKEN_KEY, GITHUB_USER_KEY, GITHUB_STATE_KEY]) sessionStorage.removeItem(key);
+  githubStatus();
+  $('github-auth-message').textContent = 'GitHub session data removed. Your Omeka session is unchanged.';
+}
+function restoreGithubSession() {
+  try {
+    const user = JSON.parse(sessionStorage.getItem(GITHUB_USER_KEY) || 'null');
+    if (!user || typeof user.login !== 'string' || typeof user.avatar_url !== 'string' || typeof user.html_url !== 'string') {
+      sessionStorage.removeItem(GITHUB_USER_KEY);
+      githubStatus();
+      return;
+    }
+    githubStatus(user);
+  } catch {
+    try { sessionStorage.removeItem(GITHUB_USER_KEY); } catch { /* Storage may be unavailable. */ }
+    githubStatus();
+  }
+}
 
 // Two independent mechanisms: request() uses manually configured admin API keys
 // for CRUD. guestRequest() uses ONLY the Guest login's temporary session_token.
@@ -480,3 +540,9 @@ $('user-auth-form').addEventListener('submit', event => { event.preventDefault()
 $('logout-user').addEventListener('click', () => runGuest(logoutUser));
 $('base-url').addEventListener('change', () => { if (guestSession) runGuest(getCurrentUser); });
 restoreGuestSession();
+$('login-github').addEventListener('click', () => {
+  try { loginWithGithub(); }
+  catch { $('github-auth-message').textContent = 'GitHub authentication could not start. Session storage and Web Crypto are required.'; }
+});
+$('logout-github').addEventListener('click', logoutGithub);
+restoreGithubSession();
