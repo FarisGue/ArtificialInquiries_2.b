@@ -21,6 +21,9 @@ const GOOGLE_CLIENT_ID = '1067324996759-21ou2rep8ddh01en6fi6m2gp9k1nkhg4.apps.go
 const GOOGLE_STATE_KEY = 'artinq.google.oauth.state.v1';
 const GOOGLE_TOKEN_KEY = 'artinq.google.access-token.v1';
 const GOOGLE_USER_KEY = 'artinq.google.user.v1';
+const COMMON_OMEKA_PROXY = 'https://artificialinquiries-2b.vercel.app/api/omeka-proxy';
+const COMMON_EXERCISE_CLASS_ID = 134;
+const COMMON_OMEKA_RESOURCES = new Set(['items', 'resource_classes', 'properties', 'resource_templates', 'vocabularies']);
 
 function githubRedirectUri() {
   return ['127.0.0.1', 'localhost'].includes(location.hostname)
@@ -127,6 +130,57 @@ function restoreGoogleSession() {
   } catch {
     try { sessionStorage.removeItem(GOOGLE_USER_KEY); } catch { /* Storage may be unavailable. */ }
     googleStatus();
+  }
+}
+
+async function fetchCommonOmeka(resource, params = {}) {
+  if (!COMMON_OMEKA_RESOURCES.has(resource)) throw new Error('Unsupported common Omeka resource.');
+  const url = new URL(COMMON_OMEKA_PROXY);
+  url.searchParams.set('resource', resource);
+  for (const [name, value] of Object.entries(params)) {
+    if (['resource', 'key_identity', 'key_credential'].includes(name) || value === undefined || value === null) continue;
+    if (Array.isArray(value)) value.forEach(entry => url.searchParams.append(name, String(entry)));
+    else url.searchParams.set(name, String(value));
+  }
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/ld+json' },
+    cache: 'no-store',
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+  });
+  if (!response.ok) throw new Error(`Common Omeka request failed (HTTP ${response.status}).`);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error('The common Omeka database returned an unexpected response.');
+  return data;
+}
+function renderCommonExercises(exercises) {
+  const list = $('common-exercise-list');
+  list.replaceChildren();
+  for (const exercise of exercises) {
+    const item = document.createElement('li');
+    item.textContent = titleOf(exercise);
+    list.append(item);
+  }
+  list.hidden = exercises.length === 0;
+}
+async function testCommonOmeka() {
+  const button = $('test-common-omeka');
+  button.disabled = true;
+  $('common-omeka-status').textContent = 'Connecting...';
+  $('common-omeka-status').dataset.state = 'connecting';
+  try {
+    const exercises = await fetchCommonOmeka('items', { resource_class_id: COMMON_EXERCISE_CLASS_ID, per_page: 100 });
+    renderCommonExercises(exercises);
+    $('common-omeka-status').textContent = 'Connected';
+    $('common-omeka-status').dataset.state = 'connected';
+    $('common-omeka-message').textContent = `Connected to common Omeka database. ${exercises.length} exercise${exercises.length === 1 ? '' : 's'} returned.`;
+  } catch (error) {
+    $('common-omeka-status').textContent = 'Connection error';
+    $('common-omeka-status').dataset.state = 'error';
+    $('common-omeka-message').textContent = error.message;
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -608,3 +662,4 @@ $('login-google').addEventListener('click', () => {
 });
 $('logout-google').addEventListener('click', logoutGoogle);
 restoreGoogleSession();
+$('test-common-omeka').addEventListener('click', testCommonOmeka);

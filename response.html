@@ -26,6 +26,13 @@
         <div class="actions"><button type="submit">Save configuration</button><button type="button" id="test-connection" class="secondary">Test connection</button><button type="button" id="clear-config" class="secondary">Clear configuration</button></div>
       </form>
     </section>
+    <section class="panel" aria-labelledby="common-omeka-heading">
+      <div class="section-heading"><h2 id="common-omeka-heading">Common Omeka Database</h2><span id="common-omeka-status" class="status" role="status">Not connected</span></div>
+      <p class="hint">Read-only access to the shared Artificial Inquiries database through the secure Vercel proxy. This does not change the local Omeka connection above.</p>
+      <div class="actions"><button type="button" id="test-common-omeka" class="secondary">Test common database</button></div>
+      <p id="common-omeka-message" class="hint" role="status" aria-live="polite">Common exercises have not been loaded.</p>
+      <ul id="common-exercise-list" class="common-exercise-list" hidden></ul>
+    </section>
     <section class="panel" aria-labelledby="user-auth-heading">
       <div class="section-heading"><h2 id="user-auth-heading">User Authentication</h2><span id="user-auth-status" class="status" role="status">Not authenticated</span></div>
       <p class="hint">Log in to Omeka Guest using the base URL above. This user session is separate from the API keys used for CRUD administration.</p>

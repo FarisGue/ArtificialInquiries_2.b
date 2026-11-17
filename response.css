@@ -2,3 +2,4 @@
 
 .auth-actions{margin-top:1rem}#user-auth-status{overflow-wrap:anywhere;max-width:100%}
 .github-user,.external-user{display:flex;align-items:center;gap:.75rem;margin:1rem 0}.github-user img,.external-user img{border-radius:50%;object-fit:cover}.github-user a,.external-user span{font-weight:600;color:#214b7d;overflow-wrap:anywhere}#github-auth-status,#google-auth-status{overflow-wrap:anywhere;max-width:100%}
+.common-exercise-list{margin:1rem 0 0;padding-left:1.25rem;columns:2;column-gap:2rem}.common-exercise-list li{break-inside:avoid;margin:.3rem 0}@media(max-width:640px){.common-exercise-list{columns:1}}
