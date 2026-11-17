@@ -17,6 +17,10 @@ const GITHUB_CLIENT_ID = 'Ov23liCkVkoqie8A6Ggb';
 const GITHUB_STATE_KEY = 'artinq.github.oauth.state.v1';
 const GITHUB_TOKEN_KEY = 'artinq.github.access-token.v1';
 const GITHUB_USER_KEY = 'artinq.github.user.v1';
+const GOOGLE_CLIENT_ID = '1067324996759-21ou2rep8ddh01en6fi6m2gp9k1nkhg4.apps.googleusercontent.com';
+const GOOGLE_STATE_KEY = 'artinq.google.oauth.state.v1';
+const GOOGLE_TOKEN_KEY = 'artinq.google.access-token.v1';
+const GOOGLE_USER_KEY = 'artinq.google.user.v1';
 
 function githubRedirectUri() {
   return ['127.0.0.1', 'localhost'].includes(location.hostname)
@@ -71,6 +75,58 @@ function restoreGithubSession() {
   } catch {
     try { sessionStorage.removeItem(GITHUB_USER_KEY); } catch { /* Storage may be unavailable. */ }
     githubStatus();
+  }
+}
+
+function googleRedirectUri() {
+  return ['127.0.0.1', 'localhost'].includes(location.hostname)
+    ? 'http://127.0.0.1:5500/google-callback.html'
+    : 'https://FarisGue.github.io/ArtificialInquiries_2.b/google-callback.html';
+}
+function googleStatus(user = null) {
+  $('google-auth-status').textContent = user ? `Authenticated with Google as ${user.email || user.name}` : 'Not authenticated with Google';
+  $('google-auth-status').dataset.state = user ? 'connected' : 'disconnected';
+  $('google-user').hidden = !user;
+  if (user) {
+    $('google-avatar').src = user.picture;
+    $('google-avatar').alt = `${user.name || user.email}'s Google profile picture`;
+    $('google-profile').textContent = user.name ? `${user.name} (${user.email})` : user.email;
+  } else {
+    $('google-avatar').removeAttribute?.('src');
+    $('google-avatar').alt = '';
+    $('google-profile').textContent = '';
+  }
+}
+function loginWithGoogle() {
+  const state = randomGithubState();
+  sessionStorage.setItem(GOOGLE_STATE_KEY, state);
+  const authorize = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  authorize.searchParams.set('client_id', GOOGLE_CLIENT_ID);
+  authorize.searchParams.set('redirect_uri', googleRedirectUri());
+  authorize.searchParams.set('response_type', 'code');
+  authorize.searchParams.set('scope', 'openid email profile');
+  authorize.searchParams.set('state', state);
+  authorize.searchParams.set('access_type', 'online');
+  authorize.searchParams.set('prompt', 'select_account');
+  location.assign(authorize.href);
+}
+function logoutGoogle() {
+  for (const key of [GOOGLE_TOKEN_KEY, GOOGLE_USER_KEY, GOOGLE_STATE_KEY]) sessionStorage.removeItem(key);
+  googleStatus();
+  $('google-auth-message').textContent = 'Google session data removed. Your GitHub and Omeka sessions are unchanged.';
+}
+function restoreGoogleSession() {
+  try {
+    const user = JSON.parse(sessionStorage.getItem(GOOGLE_USER_KEY) || 'null');
+    if (!user || typeof user.sub !== 'string' || typeof user.email !== 'string' || typeof user.picture !== 'string') {
+      sessionStorage.removeItem(GOOGLE_USER_KEY);
+      googleStatus();
+      return;
+    }
+    googleStatus(user);
+  } catch {
+    try { sessionStorage.removeItem(GOOGLE_USER_KEY); } catch { /* Storage may be unavailable. */ }
+    googleStatus();
   }
 }
 
@@ -546,3 +602,9 @@ $('login-github').addEventListener('click', () => {
 });
 $('logout-github').addEventListener('click', logoutGithub);
 restoreGithubSession();
+$('login-google').addEventListener('click', () => {
+  try { loginWithGoogle(); }
+  catch { $('google-auth-message').textContent = 'Google authentication could not start. Session storage and Web Crypto are required.'; }
+});
+$('logout-google').addEventListener('click', logoutGoogle);
+restoreGoogleSession();

@@ -45,13 +45,20 @@
       <div class="actions auth-actions"><button type="button" id="login-github">Continue with GitHub</button><button type="button" id="logout-github" class="secondary">Logout GitHub</button></div>
       <p id="github-auth-message" class="hint" role="status" aria-live="polite">GitHub authentication data is kept only for this tab’s session.</p>
     </section>
+    <section class="panel" aria-labelledby="google-auth-heading">
+      <div class="section-heading"><h2 id="google-auth-heading">Google Authentication</h2><span id="google-auth-status" class="status" role="status">Not authenticated with Google</span></div>
+      <p class="hint">Google sign-in is independent of GitHub, Omeka Guest sessions, and the API keys used for CRUD administration.</p>
+      <div id="google-user" class="external-user" hidden><img id="google-avatar" width="48" height="48" alt="" referrerpolicy="no-referrer"><span id="google-profile"></span></div>
+      <div class="actions auth-actions"><button type="button" id="login-google">Continue with Google</button><button type="button" id="logout-google" class="secondary">Logout Google</button></div>
+      <p id="google-auth-message" class="hint" role="status" aria-live="polite">Google authentication data is kept only for this tab’s session.</p>
+    </section>
     <div id="message" role="status" aria-live="polite" hidden></div>
     <section aria-labelledby="tasks-heading">
       <div class="section-heading"><div><p class="eyebrow">All the things you could do</p><h2 id="tasks-heading">Task Management</h2></div><div class="actions"><button id="refresh-tasks" class="secondary">Refresh</button><button id="add-task">+ Add Task</button></div></div>
       <p id="task-count" class="hint">Save your configuration, then test the connection to load tasks.</p><div id="tasks" class="task-grid"></div>
     </section>
-    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>GitHub OAuth identifies the GitHub user independently and does not replace Omeka credentials. CAS and Google OAuth are not configured.</p></details>
-    <section class="panel" aria-labelledby="auth-methods-heading"><h2 id="auth-methods-heading">Authentication methods</h2><ul><li>Local Omeka / Guest: Functional</li><li>GitHub OAuth: Functional</li><li>CAS: Not configured</li><li>Google OAuth: Not configured</li></ul><p class="hint">Guest must allow your user role to log in via API and allow this page’s origin through CORS. GitHub OAuth uses a restricted Vercel token-exchange endpoint.</p></section>
+    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>GitHub and Google OAuth identify external users independently and do not replace Omeka credentials. CAS is not configured.</p></details>
+    <section class="panel" aria-labelledby="auth-methods-heading"><h2 id="auth-methods-heading">Authentication methods</h2><ul><li>Local Omeka / Guest: Functional</li><li>GitHub OAuth: Functional</li><li>Google OAuth: Functional</li><li>CAS: Not configured</li></ul><p class="hint">Guest must allow your user role to log in via API and allow this page’s origin through CORS. GitHub and Google OAuth use restricted Vercel token-exchange endpoints.</p></section>
     <details class="panel"><summary>Request debug log (credentials redacted)</summary><pre id="debug">No requests yet.</pre></details>
   </main>
   <dialog id="task-dialog" aria-labelledby="form-heading">
