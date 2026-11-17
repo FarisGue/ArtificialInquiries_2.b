@@ -24,6 +24,7 @@ const GOOGLE_USER_KEY = 'artinq.google.user.v1';
 const COMMON_OMEKA_PROXY = 'https://artificialinquiries-2b.vercel.app/api/omeka-proxy';
 const COMMON_EXERCISE_CLASS_ID = 134;
 const COMMON_OMEKA_RESOURCES = new Set(['items', 'resource_classes', 'properties', 'resource_templates', 'vocabularies']);
+const OMEKA_CRUD_CONFIG_MESSAGE = 'Omeka configuration required. Please configure the Omeka base URL and API keys before creating or modifying tasks.';
 
 function githubRedirectUri() {
   return ['127.0.0.1', 'localhost'].includes(location.hostname)
@@ -451,6 +452,18 @@ function saveConfig() {
 function requireKeys() {
   if (config?.mode !== 'keys' || !config.identity || !config.credential) throw new Error('Choose Omeka API Keys and enter both keys to create, update or delete tasks.');
 }
+function requireOmekaCrudConfig() {
+  const base = $('base-url').value.trim();
+  const identity = $('identity').value.trim();
+  const credential = $('credential').value.trim();
+  if (!base || !identity || !credential || $('auth-mode').value !== 'keys') throw new Error(OMEKA_CRUD_CONFIG_MESSAGE);
+  try {
+    const url = new URL(base);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error();
+  } catch {
+    throw new Error(OMEKA_CRUD_CONFIG_MESSAGE);
+  }
+}
 async function request(path, { method = 'GET', params = {}, body, authenticated = false } = {}) {
   if (!config) throw new Error('Enter connection settings first.');
   const url = new URL(`${config.base}/api/${path}`);
@@ -551,6 +564,7 @@ async function fetchRelatedResources() {
   }
 }
 async function prepareForm() {
+  requireOmekaCrudConfig();
   applyConfig(); requireKeys();
   if (!properties.size) await discover();
   await fetchRelatedResources();
@@ -597,8 +611,12 @@ function buildPayload(existing = null) {
   }
   return payload;
 }
-async function createTask() { await request('items', { method: 'POST', body: buildPayload() }); }
+async function createTask() {
+  requireOmekaCrudConfig();
+  await request('items', { method: 'POST', body: buildPayload() });
+}
 async function updateTask() {
+  requireOmekaCrudConfig();
   const fresh = await get(`items/${editing['o:id']}`);
   if (JSON.stringify(fresh) !== JSON.stringify(editing)) throw new Error('This task changed since you opened it. Close and reopen the editor before saving.');
   await request(`items/${editing['o:id']}`, { method: 'PATCH', body: buildPayload(fresh) });
@@ -608,6 +626,7 @@ async function afterWrite(message) {
   catch (error) { showMessage(`${message} Refresh failed: ${redact(error.message)} Use Refresh; do not repeat the write.`, 'error'); }
 }
 async function deleteTask(id) {
+  requireOmekaCrudConfig();
   applyConfig(); requireKeys();
   if (!window.confirm('Are you sure you want to delete this task?')) return;
   await request(`items/${id}`, { method: 'DELETE' }); await afterWrite('Task deleted.');
@@ -639,6 +658,7 @@ $('task-dialog').addEventListener('cancel', event => { if (busy) event.preventDe
 $('task-form').addEventListener('submit', event => {
   event.preventDefault();
   run(async () => {
+    requireOmekaCrudConfig();
     if (!$('title').value.trim() || !$('taskName').value.trim()) throw new Error('Invalid form: title and task name must not be blank.');
     const isEdit = Boolean(editing);
     if (isEdit) await updateTask(); else await createTask();

@@ -11,6 +11,8 @@ const calls = [];
 const context = vm.createContext({console, URL, URLSearchParams, AbortController, setTimeout, clearTimeout, Option: function(text,value){this.text=text;this.value=String(value);}, document:{getElementById:element,querySelectorAll:()=>[],createElement:()=>element(Math.random())}, localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}, window:{confirm:()=>true}, fetch:async(url,options)=>{calls.push({url:new URL(url),...options});return {ok:true,status:options.method==='DELETE'?204:200,text:async()=>options.method==='DELETE'?'':'[]'};}});
 vm.runInContext(fs.readFileSync('response.js','utf8'),context);
 (async()=>{
+  await assert.rejects(vm.runInContext('openCreateForm()',context), /Omeka configuration required\. Please configure the Omeka base URL and API keys before creating or modifying tasks\./);
+  assert.equal(calls.length,0,'Missing Omeka configuration must not make a request');
   await vm.runInContext(`(async()=>{
     $('base-url').value='http://localhost/omeka-s'; $('auth-mode').value='keys'; $('identity').value='test-identity'; $('credential').value='test-credential'; saveConfig();
     properties = new Map([...literals,...Object.keys(relations)].map((f,i)=>[term(f),i+1])); classes.set('artinq:Task',44);

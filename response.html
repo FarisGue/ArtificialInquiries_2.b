@@ -62,6 +62,7 @@
     <div id="message" role="status" aria-live="polite" hidden></div>
     <section aria-labelledby="tasks-heading">
       <div class="section-heading"><div><p class="eyebrow">All the things you could do</p><h2 id="tasks-heading">Task Management</h2></div><div class="actions"><button id="refresh-tasks" class="secondary">Refresh</button><button id="add-task">+ Add Task</button></div></div>
+      <p class="hint">Creating or editing tasks requires a configured Omeka API connection. GitHub and Google sign-in identify the user but do not authorize Omeka CRUD operations.</p>
       <p id="task-count" class="hint">Save your configuration, then test the connection to load tasks.</p><div id="tasks" class="task-grid"></div>
     </section>
     <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>GitHub and Google OAuth identify external users independently and do not replace Omeka credentials. CAS is not configured.</p></details>
