@@ -1,4 +1,41 @@
-# ArtificialInquiries_2b
+# ArtificialInquiries_2.b
+
+Current application: https://FarisGue.github.io/ArtificialInquiries_2.b/
+
+## Current authentication and data architecture
+
+- Omeka Guest authentication provides an independent local user session.
+- Omeka API identity and credential keys authorize local Task and Exercise CRUD.
+- GitHub OAuth and Google OAuth identify external users. Their client secrets exist only in Vercel environment variables; Vercel functions perform token exchange.
+- The common Omeka database is available through a strictly read-only Vercel proxy. It is never used for writes.
+- CAS Paris 8 authentication uses the university's official CAS endpoint and a restricted server-side ticket validator.
+
+### CAS Paris 8 configuration
+
+CAS is independent of Omeka Guest, API-key CRUD, GitHub, and Google. No CAS
+password or ticket is stored by the application. The official CAS base URL is
+`https://cas.univ-paris8.fr/cas`; login, validation, and logout respectively use
+`/login`, `/serviceValidate`, and `/logout` beneath that base URL.
+
+1. Confirm that the GitHub Pages callback service is registered/allowed by Paris 8.
+2. In Vercel, optionally set `CAS_SERVER_URL` to the official base URL; the
+   endpoint defaults to the same official value.
+3. In Vercel, optionally set `CAS_SERVICE_URL` to the callback URL; the endpoint
+   defaults to the production callback. A comma-separated list
+   may be used when both callbacks are registered:
+   `http://127.0.0.1:5500/cas-callback.html` and
+   `https://FarisGue.github.io/ArtificialInquiries_2.b/cas-callback.html`.
+4. Redeploy the Vercel functions and the static GitHub Pages site.
+
+The backend accepts only the two callback URLs above, validates tickets through
+CAS `serviceValidate`, returns minimal parsed identity data, and never returns
+the raw CAS XML. An invalid or missing runtime URL disables the CAS login button.
+
+Local Exercise CRUD discovers the common `artinq:Exercice` class, the `Artificial Inquiries – Exercice` resource template, and the `dcterms:title`, `dcterms:description`, `artinq:numero`, `artinq:titre`, `artinq:pageVademecum`, and optional `artinq:aPourExemple` properties. The shared `artinq` vocabulary is provided in `artificial_inquiries.ttl`.
+
+## Security note about the database export
+
+The former `omk.sql` database dump is intentionally excluded from the public repository because it contained administrator and historical session data. Recreate a sanitized academic export if a database snapshot is required. Do not commit users, password hashes, sessions, CSRF data, API keys, or authentication records. The sensitive former version remains in Git history; history has not been rewritten.
 
 ## Présentation
 
@@ -224,7 +261,7 @@ and [resource value format](https://omeka.org/s/docs/developer/api/rest_api_refe
 
 Commit these files and enable GitHub Pages for your repository's branch and root
 folder under **Settings > Pages**. The intended URL is:
-`https://farisgue.github.io/ArtificialInquiries_2b/response.html`.
+`https://FarisGue.github.io/ArtificialInquiries_2.b/response.html`.
 All asset links are relative and work under a repository subpath.
 
 Localhost always refers to the visitor's own computer. Publishing this page does
@@ -237,9 +274,7 @@ connecting to HTTP/local servers. Browser fetch errors cannot reliably distingui
 these restrictions from an offline server, so the interface explains the likely causes.
 
 **Local prototype** supports anonymous public API reads; writes require API Keys.
-CAS, GitHub OAuth and Google OAuth are informational, unconfigured choices. They
-require additional server-side configuration or an authentication provider; the
-page does not simulate OAuth authentication.
+GitHub and Google OAuth use secure Vercel token-exchange functions. CAS uses a separate Vercel ticket-validation function when configured.
 
 The navigation link points to the repository root. This checkout does not contain
 an `index.html` main application yet; restore that page to make this link lead to
@@ -293,8 +328,7 @@ In Guest module settings, enable API login for the intended user role and allow
 the page's origin. The server must support CORS for all three endpoints, including
 OPTIONS/JSON preflight. Cookie requests require an explicit allowed origin (not
 `*`) and `Access-Control-Allow-Credentials: true`; browser cookie policies also
-apply. For production, use HTTPS. CAS, GitHub OAuth and Google
-OAuth remain explicitly unconfigured; none is simulated.
+apply. For production, use HTTPS. GitHub, Google, and CAS are independent from Guest authentication and Omeka API-key CRUD.
 
 The optional developer checks `node --check response.js` and
 `node response.test.cjs` cover the existing CRUD behavior plus mocked Guest login,

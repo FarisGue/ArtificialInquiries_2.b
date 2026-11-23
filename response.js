@@ -10,6 +10,7 @@ let properties = new Map();
 let classes = new Map();
 let tasks = [];
 let editing = null;
+let exercises = [], editingExercise = null, exerciseTemplateId = null;
 let busy = false;
 const GUEST_STORAGE_KEY = 'artinq.omeka.guest.v1';
 let guestSession = null;
@@ -21,10 +22,15 @@ const GOOGLE_CLIENT_ID = '1067324996759-21ou2rep8ddh01en6fi6m2gp9k1nkhg4.apps.go
 const GOOGLE_STATE_KEY = 'artinq.google.oauth.state.v1';
 const GOOGLE_TOKEN_KEY = 'artinq.google.access-token.v1';
 const GOOGLE_USER_KEY = 'artinq.google.user.v1';
+const CAS_PENDING_KEY = 'artinq.cas.pending.v1';
+const CAS_AUTHENTICATED_KEY = 'cas_authenticated';
+const CAS_USER_KEY = 'cas_user';
+const CAS_ATTRIBUTES_KEY = 'cas_attributes';
 const COMMON_OMEKA_PROXY = 'https://artificialinquiries-2b.vercel.app/api/omeka-proxy';
 const COMMON_EXERCISE_CLASS_ID = 134;
 const COMMON_OMEKA_RESOURCES = new Set(['items', 'resource_classes', 'properties', 'resource_templates', 'vocabularies']);
 const OMEKA_CRUD_CONFIG_MESSAGE = 'Omeka configuration required. Please configure the Omeka base URL and API keys before creating or modifying tasks.';
+const EXERCISE_CRUD_CONFIG_MESSAGE = 'Omeka configuration required. Please configure the Omeka base URL and API keys before creating or modifying exercises.';
 
 function githubRedirectUri() {
   return ['127.0.0.1', 'localhost'].includes(location.hostname)
@@ -132,6 +138,69 @@ function restoreGoogleSession() {
     try { sessionStorage.removeItem(GOOGLE_USER_KEY); } catch { /* Storage may be unavailable. */ }
     googleStatus();
   }
+}
+
+function casServiceUrl() {
+  return ['127.0.0.1', 'localhost'].includes(location.hostname)
+    ? 'http://127.0.0.1:5500/cas-callback.html'
+    : 'https://FarisGue.github.io/ArtificialInquiries_2.b/cas-callback.html';
+}
+function configuredCasServer() {
+  const raw = typeof window.CAS_SERVER_URL === 'string' ? window.CAS_SERVER_URL.trim() : '';
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) return null;
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    return url;
+  } catch { return null; }
+}
+function casStatus(user = null) {
+  $('cas-auth-status').textContent = user ? `Authenticated with CAS as ${user}` : 'Not authenticated';
+  $('cas-auth-status').dataset.state = user ? 'connected' : 'disconnected';
+}
+function loginWithCas() {
+  const server = configuredCasServer();
+  if (!server) {
+    $('cas-auth-message').textContent = 'CAS authentication is not configured yet.';
+    return;
+  }
+  sessionStorage.setItem(CAS_PENDING_KEY, String(Date.now()));
+  const login = new URL(`${server.href.replace(/\/+$/, '')}/login`);
+  login.searchParams.set('service', casServiceUrl());
+  location.assign(login.href);
+}
+function logoutCas() {
+  const server = configuredCasServer();
+  for (const key of [CAS_PENDING_KEY, CAS_AUTHENTICATED_KEY, CAS_USER_KEY, CAS_ATTRIBUTES_KEY]) sessionStorage.removeItem(key);
+  casStatus();
+  if (!server) {
+    $('cas-auth-message').textContent = 'CAS authentication is not configured yet.';
+    return;
+  }
+  $('cas-auth-message').textContent = 'CAS session data removed from this tab. Redirecting to Paris 8 CAS logout.';
+  location.assign(`${server.href.replace(/\/+$/, '')}/logout`);
+}
+function restoreCasSession() {
+  const server = configuredCasServer();
+  $('login-cas').disabled = !server;
+  if (!server) {
+    casStatus();
+    $('cas-auth-message').textContent = 'CAS authentication is not configured yet.';
+    return;
+  }
+  try {
+    const authenticated = sessionStorage.getItem(CAS_AUTHENTICATED_KEY) === 'true';
+    const user = sessionStorage.getItem(CAS_USER_KEY);
+    JSON.parse(sessionStorage.getItem(CAS_ATTRIBUTES_KEY) || '{}');
+    if (!authenticated || !user) {
+      casStatus();
+      $('cas-auth-message').textContent = 'Continue with the official Paris 8 CAS service.';
+      return;
+    }
+    casStatus(user);
+    $('cas-auth-message').textContent = 'CAS authentication data is kept only for this tab’s session.';
+  } catch { logoutCas(); }
 }
 
 async function fetchCommonOmeka(resource, params = {}) {
@@ -422,8 +491,9 @@ function readConfig() {
   return { base: url.href.replace(/\/+$/, '').replace(/\/api$/, ''), identity: $('identity').value.trim(), credential: $('credential').value.trim(), mode };
 }
 function resetData() {
-  properties.clear(); classes.clear(); tasks = []; editing = null;
+  properties.clear(); classes.clear(); tasks = []; editing = null; exercises = []; editingExercise = null; exerciseTemplateId = null;
   $('tasks').replaceChildren(); $('task-count').textContent = 'Test the connection or refresh to load tasks.';
+  $('exercises').replaceChildren(); $('exercise-count').textContent = 'Configure local Omeka, then load exercises.';
   showStatus('Disconnected');
 }
 function applyConfig() {
@@ -453,16 +523,88 @@ function requireKeys() {
   if (config?.mode !== 'keys' || !config.identity || !config.credential) throw new Error('Choose Omeka API Keys and enter both keys to create, update or delete tasks.');
 }
 function requireOmekaCrudConfig() {
+  requireCrudConfig(OMEKA_CRUD_CONFIG_MESSAGE);
+}
+function requireExerciseCrudConfig() {
+  requireCrudConfig(EXERCISE_CRUD_CONFIG_MESSAGE);
+}
+function requireCrudConfig(message) {
   const base = $('base-url').value.trim();
   const identity = $('identity').value.trim();
   const credential = $('credential').value.trim();
-  if (!base || !identity || !credential || $('auth-mode').value !== 'keys') throw new Error(OMEKA_CRUD_CONFIG_MESSAGE);
+  if (!base || !identity || !credential || $('auth-mode').value !== 'keys') throw new Error(message);
   try {
     const url = new URL(base);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error();
   } catch {
-    throw new Error(OMEKA_CRUD_CONFIG_MESSAGE);
+    throw new Error(message);
   }
+}
+const exerciseTerms = { exerciseTitle: 'dcterms:title', exerciseDescription: 'dcterms:description', exerciseNumber: 'artinq:numero', exerciseArtinqTitle: 'artinq:titre', exercisePage: 'artinq:pageVademecum' };
+const exerciseInputIds = { exerciseTitle: 'exercise-title', exerciseDescription: 'exercise-description', exerciseNumber: 'exercise-number', exerciseArtinqTitle: 'exercise-artinq-title', exercisePage: 'exercise-page' };
+async function ensureExerciseMetadata() {
+  if (!properties.size || !classes.size) await discover();
+  const missing = Object.values(exerciseTerms).filter(value => !properties.has(value));
+  if (missing.length) throw new Error(`Missing exercise vocabulary properties: ${missing.join(', ')}.`);
+  if (!classes.has('artinq:Exercice')) throw new Error('The artinq:Exercice class was not found.');
+  if (!exerciseTemplateId) {
+    const template = (await all('resource_templates')).find(value => String(value['o:label'] || '').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === 'artificial inquiries exercice');
+    if (!template) throw new Error('Resource template “Artificial Inquiries – Exercice” was not found.');
+    exerciseTemplateId = template['o:id'];
+  }
+}
+function exercisePayload(existing = null) {
+  const payload = {};
+  if (existing) for (const [key, value] of Object.entries(existing)) { if (Array.isArray(value) && value.some(v => v && typeof v === 'object' && 'property_id' in v)) payload[key] = value; }
+  else { payload['o:resource_class'] = { 'o:id': classes.get('artinq:Exercice') }; payload['o:resource_template'] = { 'o:id': exerciseTemplateId }; payload['o:is_public'] = true; }
+  for (const [field, termName] of Object.entries(exerciseTerms)) {
+    const value = $(exerciseInputIds[field]).value.trim(), old = existing?.[termName] || [];
+    payload[termName] = value ? [{ ...(old[0] || {}), type: 'literal', property_id: properties.get(termName), '@value': value }, ...old.slice(1)] : old.slice(1);
+  }
+  if (properties.has('artinq:aPourExemple')) {
+    const ids = $('exercise-examples').value.split(',').map(value => Number(value.trim())).filter(value => Number.isInteger(value) && value > 0);
+    const old = existing?.['artinq:aPourExemple'] || [];
+    payload['artinq:aPourExemple'] = [...new Set(ids)].map(value_resource_id => ({ ...(old.find(value => value.value_resource_id === value_resource_id) || {}), type: 'resource:item', property_id: properties.get('artinq:aPourExemple'), value_resource_id }));
+  }
+  return payload;
+}
+async function loadExercises() { requireExerciseCrudConfig(); applyConfig(); requireKeys(); await ensureExerciseMetadata(); exercises = await all('items', { resource_class_id: classes.get('artinq:Exercice'), resource_template_id: exerciseTemplateId }); renderExercises(); }
+function renderExercises() {
+  $('exercises').replaceChildren(); $('exercise-count').textContent = `${exercises.length} exercise${exercises.length === 1 ? '' : 's'} found.`;
+  for (const exercise of exercises) {
+    const metadataId = document.createElement('div'); metadataId.className = 'task-id'; metadataId.textContent = `OMEKA ITEM #${exercise['o:id']}`;
+    const metadataList = document.createElement('dl');
+    const display = (termName, fallback = 'Not specified') => (exercise[termName] || []).map(value => value['@value'] ?? value['@id'] ?? value.display_title ?? (value.value_resource_id ? `Resource #${value.value_resource_id}` : '')).filter(Boolean).join('\n') || fallback;
+    for (const [label, termName] of [['Title', 'dcterms:title'], ['Description', 'dcterms:description'], ['Exercise number', 'artinq:numero'], ['Exercise title', 'artinq:titre'], ['Vademecum page', 'artinq:pageVademecum'], ['Example URL', 'artinq:aPourExemple']]) {
+      const dt = document.createElement('dt'); dt.textContent = label;
+      const dd = document.createElement('dd'); dd.textContent = display(termName); metadataList.append(dt, dd);
+    }
+    const card = document.createElement('article'), heading = document.createElement('h3'), details = document.createElement('p'), actions = document.createElement('div'); card.className = 'task-card'; heading.textContent = titleOf(exercise); details.textContent = [valuesOf(exercise, 'numero'), valuesOf(exercise, 'pageVademecum')].filter(Boolean).join(' · ') || 'No number or page specified'; actions.className = 'actions';
+    for (const [label, action] of [['Edit', () => openExerciseForm(exercise['o:id'])], ['Delete', () => deleteExercise(exercise['o:id'])]]) { const button = document.createElement('button'); button.textContent = label; button.className = label === 'Delete' ? 'danger' : 'secondary'; button.addEventListener('click', () => run(action)); actions.append(button); }
+    card.append(metadataId, heading, metadataList, details, actions); $('exercises').append(card);
+  }
+}
+async function openExerciseForm(id = null) {
+  requireExerciseCrudConfig(); applyConfig(); requireKeys(); await ensureExerciseMetadata(); $('exercise-form').reset(); $('exercise-form-error').hidden = true; editingExercise = id ? await get(`items/${id}`) : null;
+  if (editingExercise) { for (const [field, termName] of Object.entries(exerciseTerms)) $(exerciseInputIds[field]).value = editingExercise[termName]?.[0]?.['@value'] || ''; $('exercise-examples').value = (editingExercise['artinq:aPourExemple'] || []).map(value => value.value_resource_id).filter(Boolean).join(', '); }
+  $('exercise-form-heading').textContent = editingExercise ? `Edit Exercise #${id}` : 'Create Exercise'; $('save-exercise').textContent = editingExercise ? 'Update Exercise' : 'Create Exercise'; $('exercise-dialog').showModal();
+}
+async function createExercise() {
+  requireExerciseCrudConfig();
+  try { await request('items', { method: 'POST', body: exercisePayload() }); }
+  catch (error) { throw new Error(`Failed to create exercise. ${error.message}`); }
+}
+async function updateExercise() {
+  requireExerciseCrudConfig();
+  try { const fresh = await get(`items/${editingExercise['o:id']}`); await request(`items/${editingExercise['o:id']}`, { method: 'PATCH', body: exercisePayload(fresh) }); }
+  catch (error) { throw new Error(`Failed to update exercise. ${error.message}`); }
+}
+async function deleteExercise(id) {
+  requireExerciseCrudConfig(); applyConfig(); requireKeys();
+  if (!window.confirm(`Delete Exercise #${id}?`)) return;
+  try { await request(`items/${id}`, { method: 'DELETE' }); }
+  catch (error) { throw new Error(`Failed to delete exercise. ${error.message}`); }
+  await loadExercises(); showMessage('Exercise deleted.', 'success');
 }
 async function request(path, { method = 'GET', params = {}, body, authenticated = false } = {}) {
   if (!config) throw new Error('Enter connection settings first.');
@@ -640,6 +782,7 @@ async function run(action) {
   catch (error) {
     showMessage(redact(error.message), 'error'); showStatus('Error');
     if ($('task-dialog').open) { $('form-error').textContent = redact(error.message); $('form-error').hidden = false; }
+    if ($('exercise-dialog').open) { $('exercise-form-error').textContent = redact(error.message); $('exercise-form-error').hidden = false; }
   } finally { busy = false; controls.forEach(el => { el.disabled = false; }); }
 }
 $('config-form').addEventListener('submit', event => { event.preventDefault(); run(saveConfig); });
@@ -665,6 +808,17 @@ $('task-form').addEventListener('submit', event => {
     $('task-dialog').close(); await afterWrite(isEdit ? 'Task updated.' : 'Task created.');
   });
 });
+$('load-exercises').addEventListener('click', () => run(loadExercises));
+$('refresh-exercises').addEventListener('click', () => run(loadExercises));
+$('add-exercise').addEventListener('click', () => run(() => openExerciseForm()));
+for (const id of ['close-exercise-form', 'cancel-exercise-form']) $(id).addEventListener('click', () => $('exercise-dialog').close());
+$('exercise-form').addEventListener('submit', event => {
+  event.preventDefault(); run(async () => {
+    requireExerciseCrudConfig(); if (!$('exercise-title').value.trim()) throw new Error('Exercise title is required.');
+    const updating = Boolean(editingExercise); if (updating) await updateExercise(); else await createExercise();
+    $('exercise-dialog').close(); await loadExercises(); showMessage(updating ? 'Exercise updated.' : 'Exercise created.', 'success');
+  });
+});
 loadConfig();
 $('user-auth-form').addEventListener('submit', event => { event.preventDefault(); runGuest(loginUser); });
 $('logout-user').addEventListener('click', () => runGuest(logoutUser));
@@ -682,4 +836,7 @@ $('login-google').addEventListener('click', () => {
 });
 $('logout-google').addEventListener('click', logoutGoogle);
 restoreGoogleSession();
+$('login-cas').addEventListener('click', loginWithCas);
+$('logout-cas').addEventListener('click', logoutCas);
+restoreCasSession();
 $('test-common-omeka').addEventListener('click', testCommonOmeka);

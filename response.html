@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Human or AI? — Omeka S CRUD Interface</title>
   <link rel="stylesheet" href="response.css">
+  <script src="cas-config.js" defer></script>
   <script src="response.js" defer></script>
 </head>
 <body>
@@ -17,7 +18,7 @@
           <label class="wide">Omeka S base URL<input id="base-url" type="url" placeholder="http://localhost/omeka-s" required></label>
           <label>API Identity Key<input id="identity" type="password" autocomplete="off"></label>
           <label>API Credential Key<input id="credential" type="password" autocomplete="off"></label>
-          <label class="wide">Authentication mode<select id="auth-mode"><option value="keys">Omeka API Keys</option><option value="local">Local prototype</option><option value="cas">CAS (not configured)</option><option value="github">GitHub OAuth (not configured)</option><option value="google">Google OAuth (not configured)</option></select></label>
+          <label class="wide">Omeka API mode<select id="auth-mode"><option value="keys">Omeka API Keys</option><option value="local">Local prototype (read only)</option></select></label>
         </div>
         <p id="auth-note" class="hint"></p>
         <p class="hint">University/local prototype: saved settings include your API keys in this browser’s localStorage. Use a trusted computer and clear configuration when finished.</p>
@@ -59,14 +60,25 @@
       <div class="actions auth-actions"><button type="button" id="login-google">Continue with Google</button><button type="button" id="logout-google" class="secondary">Logout Google</button></div>
       <p id="google-auth-message" class="hint" role="status" aria-live="polite">Google authentication data is kept only for this tab’s session.</p>
     </section>
+    <section class="panel" aria-labelledby="cas-auth-heading">
+      <div class="section-heading"><h2 id="cas-auth-heading">CAS Paris 8 Authentication</h2><span id="cas-auth-status" class="status" role="status">Not authenticated</span></div>
+      <p class="hint">CAS sign-in is independent of GitHub, Google, Omeka Guest sessions, and the API keys used for CRUD administration.</p>
+      <div class="actions auth-actions"><button type="button" id="login-cas">Continue with CAS Paris 8</button><button type="button" id="logout-cas" class="secondary">Logout CAS</button></div>
+      <p id="cas-auth-message" class="hint" role="status" aria-live="polite">Continue with the official Paris 8 CAS service.</p>
+    </section>
     <div id="message" role="status" aria-live="polite" hidden></div>
     <section aria-labelledby="tasks-heading">
       <div class="section-heading"><div><p class="eyebrow">All the things you could do</p><h2 id="tasks-heading">Task Management</h2></div><div class="actions"><button id="refresh-tasks" class="secondary">Refresh</button><button id="add-task">+ Add Task</button></div></div>
       <p class="hint">Creating or editing tasks requires a configured Omeka API connection. GitHub and Google sign-in identify the user but do not authorize Omeka CRUD operations.</p>
       <p id="task-count" class="hint">Save your configuration, then test the connection to load tasks.</p><div id="tasks" class="task-grid"></div>
     </section>
-    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>GitHub and Google OAuth identify external users independently and do not replace Omeka credentials. CAS is not configured.</p></details>
-    <section class="panel" aria-labelledby="auth-methods-heading"><h2 id="auth-methods-heading">Authentication methods</h2><ul><li>Local Omeka / Guest: Functional</li><li>GitHub OAuth: Functional</li><li>Google OAuth: Functional</li><li>CAS: Not configured</li></ul><p class="hint">Guest must allow your user role to log in via API and allow this page’s origin through CORS. GitHub and Google OAuth use restricted Vercel token-exchange endpoints.</p></section>
+    <section aria-labelledby="exercises-heading">
+      <div class="section-heading"><div><p class="eyebrow">Local Omeka exercises</p><h2 id="exercises-heading">Exercise Configuration</h2></div><div class="actions"><button id="load-exercises" class="secondary">Load Exercises</button><button id="refresh-exercises" class="secondary">Refresh</button><button id="add-exercise">+ Add Exercise</button></div></div>
+      <p class="hint">Exercise CRUD uses only the configured local Omeka API keys. The common database proxy remains read-only.</p>
+      <p id="exercise-count" class="hint">Configure local Omeka, then load exercises.</p><div id="exercises" class="task-grid"></div>
+    </section>
+    <details class="panel"><summary>Authentication information</summary><p>Omeka API Keys authenticate API requests using the permissions of the key owner. Local prototype provides anonymous access to public Omeka resources; switch to API Keys to create, edit or delete.</p><p>GitHub, Google, and CAS identify external users independently and do not replace Omeka credentials.</p></details>
+    <section class="panel" aria-labelledby="auth-methods-heading"><h2 id="auth-methods-heading">Authentication methods</h2><ul><li>Local Omeka / Guest: Functional</li><li>GitHub OAuth: Functional</li><li>Google OAuth: Functional</li><li>CAS Paris 8: Available when configured</li></ul><p class="hint">Guest must allow your user role to log in via API and allow this page’s origin through CORS. External authentication uses restricted Vercel endpoints where server-side validation is required.</p></section>
     <details class="panel"><summary>Request debug log (credentials redacted)</summary><pre id="debug">No requests yet.</pre></details>
   </main>
   <dialog id="task-dialog" aria-labelledby="form-heading">
@@ -85,6 +97,17 @@
         <label class="wide">Reflection<select id="generatesReflection"><option value="">None</option></select></label>
       </div>
       <p id="form-error" role="alert" hidden></p><div class="actions"><button id="save-task" type="submit">Create Task</button><button id="cancel-form" type="button" class="secondary">Cancel</button></div>
+    </form>
+  </dialog>
+  <dialog id="exercise-dialog" aria-labelledby="exercise-form-heading">
+    <form id="exercise-form"><div class="section-heading"><h2 id="exercise-form-heading">Create Exercise</h2><button type="button" id="close-exercise-form" class="secondary">Close</button></div>
+      <p class="hint">Uses the local “Artificial Inquiries – Exercice” resource template and administrative API keys.</p>
+      <div class="form-grid">
+        <label class="wide">Title<input id="exercise-title" required></label><label>Number<input id="exercise-number"></label><label>Exercise title<input id="exercise-artinq-title"></label><label>Vademecum page<input id="exercise-page"></label>
+        <label class="wide">Description<textarea id="exercise-description" rows="3"></textarea></label><label class="wide">Example item IDs<input id="exercise-examples" placeholder="12, 34" aria-describedby="exercise-examples-help"></label>
+        <p id="exercise-examples-help" class="hint wide">Optional local Omeka item IDs for artinq:aPourExemple, separated by commas.</p>
+      </div>
+      <p id="exercise-form-error" role="alert" hidden></p><div class="actions"><button id="save-exercise" type="submit">Create Exercise</button><button id="cancel-exercise-form" type="button" class="secondary">Cancel</button></div>
     </form>
   </dialog>
   <footer class="wrap">Artificial Inquiries · Exercise 2b · Human judgment stays at the center.</footer>

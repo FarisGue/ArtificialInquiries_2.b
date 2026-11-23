@@ -1,0 +1,2 @@
+# Security-sensitive local database exports must not be published.
+omk.sql
