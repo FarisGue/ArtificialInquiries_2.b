@@ -35,6 +35,8 @@ Local Exercise CRUD discovers the common `artinq:Exercice` class, the `Artificia
 
 ## Security note about the database export
 
+Database export: the public repository includes `omk_sanitized.sql`, a sanitized Omeka S database export for academic demonstration. Authentication, user, API-key, global-setting, and session data have been removed for security, and retained academic records have no user ownership dependency.
+
 The former `omk.sql` database dump is intentionally excluded from the public repository because it contained administrator and historical session data. Recreate a sanitized academic export if a database snapshot is required. Do not commit users, password hashes, sessions, CSRF data, API keys, or authentication records. The sensitive former version remains in Git history; history has not been rewritten.
 
 ## Présentation
